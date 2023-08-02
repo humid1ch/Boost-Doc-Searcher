@@ -7,10 +7,6 @@
 #include <string>
 #include <fstream>
 
-#define ENUM_ERROR 1
-#define PARSEINFO_ERROR 2
-#define SAVEINFO_ERROR 3
-
 namespace ns_util {
 	class fileUtil {
 	public:

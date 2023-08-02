@@ -1,4 +1,3 @@
-#include <boost/filesystem/operations.hpp>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -13,7 +12,7 @@
 //  2. 通过 vector 中保存的 文档名, 找到文档 并对 所有文档的内容去标签
 //  3. 还是通过 vector中保存的文档名
 //     读取所有文档的内容,  以每个文档 标题 内容 url 结构构成一个docInfo结构体. 并以 vector 存储起来
-//  4. 将用vector 存储起来的所有文档的docInfo 存储到 ./data/output/raw 文件中, 每个文档的info用 \3 分割
+//  4. 将用vector 存储起来的所有文档的docInfo 存储到 ./data/output/raw 文件中, 每个文档的info用 \n 分割
 // 至此 完成对所有文档的 解析
 
 //  为提高解析效率, 可以将 2 3 步骤合并为一个函数:
@@ -24,6 +23,9 @@
 //  * 表示输出型参数: std::string*
 //  & 表示输入输出型参数: std::string&
 
+#define ENUM_ERROR 1
+#define PARSEINFO_ERROR 2
+#define SAVEINFO_ERROR 3
 #define SEP '\3'
 
 const std::string srcPath = "data/input";	  // 存放所有文档的目录
@@ -95,7 +97,7 @@ bool enumFile(const std::string& srcPath, std::vector<std::string>* filesList) {
 			continue;
 		}
 
-		std::cout << "Debug:  " << iter->path().string() << std::endl;
+		//		std::cout << "Debug:  " << iter->path().string() << std::endl;
 
 		// 走到这里的都是 .html 文件
 		// 将 文件名存储到 filesList 中
@@ -144,29 +146,30 @@ bool parseContent(const std::string& fileContent, std::string* content) {
 	enum status s = LABLE; // 因为首先的状态一定是在标签内
 	for (auto c : fileContent) {
 		switch (s) {
-		case LABLE: {
-			// 如果此时的c表示标签内的内容, 不做处理
-			// 除非 当c等于>时, 表示即将出标签, 此时需要切换状态
-			if (c == '>') {
-				s = CONTENT;
-			}
-
-		} break;
-		case CONTENT: {
-			// 此时 c 表示正文的内容, 所以需要存储在 content中, 但是为了后面存储以及分割不同文档, 所以也不要存储 \n, 将 \n 换成 ' '存储
-			// 并且, 当c表示<时, 也就不要存储了, 表示已经出了正文内容, 需要切换状态
-			if (c == '<') {
-				s = LABLE;
-			}
-			else {
-				if (c == '\n') {
-					c = ' ';
+			case LABLE: {
+				// 如果此时的c表示标签内的内容, 不做处理
+				// 除非 当c等于>时, 表示即将出标签, 此时需要切换状态
+				if (c == '>') {
+					s = CONTENT;
 				}
-				*content += c;
+				break;
 			}
-		} break;
-		default:
-			break;
+			case CONTENT: {
+				// 此时 c 表示正文的内容, 所以需要存储在 content中, 但是为了后面存储以及分割不同文档, 所以也不要存储 \n, 将 \n 换成 ' '存储
+				// 并且, 当c表示<时, 也就不要存储了, 表示已经出了正文内容, 需要切换状态
+				if (c == '<') {
+					s = LABLE;
+				}
+				else {
+					if (c == '\n') {
+						c = ' ';
+					}
+					*content += c;
+				}
+				break;
+			}
+			default:
+				break;
 		}
 	}
 
@@ -228,7 +231,7 @@ bool parseDocInfo(const std::vector<std::string>& filesList, std::vector<docInfo
 			continue;
 		}
 
-		ShowDoc(doc);
+		//		ShowDoc(doc);
 		// 做完上面的一系列操作 走到这里时 如果没有不过 doc 应该已经被填充完毕了
 		// doc出此次循环时就要被销毁了, 所以将doc 设置为将亡值 可以防止拷贝构造的发生 而使用移动语义来向 vector中添加元素
 		// 这里发生拷贝构造是非常的消耗资源的 因为 doc._content 非常的大
