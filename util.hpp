@@ -101,8 +101,8 @@ namespace ns_util {
 			return _instance;
 		}
 
-		// 主要是为了支持 消除暂停词的分词
-		// 也就是需要将暂停词, 写入到 map中
+		// 主要是为了支持 消除停止词的分词
+		// 也就是需要将停止词, 写入到 map中
 		bool initJiebaUtil() {
 			// 首先按行读取文件 const char* const STOP_WORD_PATH = "./cppjiebaDict/stop_words.utf8"
 			std::ifstream stopFile(STOP_WORD_PATH, std::ios::in);
@@ -120,11 +120,11 @@ namespace ns_util {
 			return true;
 		}
 
-		// 分词: 不消除暂停词的版本
+		// 分词: 不消除停止词的版本
 		void cutString(const std::string& src, std::vector<std::string>* out) {
 			_jieba.CutForSearch(src, *out);
 		}
-		// 分词: 消除暂停词的版本
+		// 分词: 消除停止词的版本
 		void cutStringNoStop(const std::string& src, std::vector<std::string>* out) {
 			noStopHelper(src, out);
 		}
