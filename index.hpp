@@ -132,6 +132,8 @@ namespace ns_index {
 				return false;
 			}
 
+			std::size_t count = 0;
+
 			std::string line;
 			while (std::getline(in, line)) {
 				// 按照parser模块的处理, getline 一次读取到的数据, 就是一个文档的: title\3content\3url\n
@@ -146,6 +148,10 @@ namespace ns_index {
 					std::cerr << "Failed to buildInvertedIndex for " << line << std::endl;
 					continue;
 				}
+
+				count++;
+				if (count % 50 == 0)
+					std::cout << "当前已经建立的索引文档: " << count << std::endl;
 			}
 
 			return true;
@@ -194,10 +200,11 @@ namespace ns_index {
 		bool buildInvertedIndex(const docInfo_t& doc) {
 			// 用来映射关键字 和 关键字的词频
 			std::unordered_map<std::string, keywordCnt_t> keywordsMap;
+			ns_util::jiebaUtil* jiebaIns = ns_util::jiebaUtil::getInstance();
 
 			// 标题分词
 			std::vector<std::string> titleKeywords;
-			ns_util::jiebaUtil::cutString(doc._title, &titleKeywords);
+			jiebaIns->cutString(doc._title, &titleKeywords);
 			// 标题词频统计 与 转换 记录
 			for (auto keyword : titleKeywords) {
 				boost::to_lower(keyword);		  // 关键字转小写
@@ -207,7 +214,7 @@ namespace ns_index {
 
 			// 内容分词
 			std::vector<std::string> contentKeywords;
-			ns_util::jiebaUtil::cutString(doc._content, &contentKeywords);
+			jiebaIns->cutString(doc._content, &contentKeywords);
 			// 内容词频统计 与 转换 记录
 			for (auto keyword : contentKeywords) {
 				boost::to_lower(keyword);			// 关键字转小写

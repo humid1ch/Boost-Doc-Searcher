@@ -11,7 +11,9 @@
 
 #include <algorithm>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <cctype>
 #include <iostream>
+#include <iterator>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -56,7 +58,11 @@ namespace ns_searcher {
 		void search(const std::string& query, std::string* jsonString) {
 			// 1. 对需要搜索的句子或关键词进行分词
 			std::vector<std::string> keywords;
-			ns_util::jiebaUtil::cutString(query, &keywords);
+			ns_util::jiebaUtil* jiebaIns = ns_util::jiebaUtil::getInstance();
+			jiebaIns->initJiebaUtil();
+
+			jiebaIns->cutStringNoStop(query, &keywords);
+			// ns_util::jiebaUtil::cutString(query, &keywords);
 
 			std::vector<invertedElemOut_t> allInvertedElemOut;
 			// std::vector<ns_index::invertedElem_t> allInvertedElem;
@@ -145,13 +151,21 @@ namespace ns_searcher {
 			// 直接这样处理, 会出现一个问题:
 			// keyword是有大小写的.
 			// 而 string::find() 是区分大小写的查找
-			// 那要怎么查找呢? string容器也没有提供不区分大小写的查找方法
-			// 那就要用到std::search()
+			// 如果不需要改变原数据情况下那要怎么查找呢? string容器也没有提供不区分大小写的查找方法
+			// 可以用std::search()
 			// std::search(it1, it2, it3, it4, pred);
-			// 可以在[it1, it2)中 查找第一个[it3, it4)(词语)的出现位置. 并且, 如果使用第5个参数, 就可以将
-			std::size_t pos = content.find(keyword);
-			if (pos == std::string::npos)
+			// 可以在[it1, it2)中 查找第一个[it3, it4)(词语)的出现位置.
+			// 并且, 如果使用第5个参数, 就可以传入 带有两个参数的仿函数, 这两个参数就是需要比较的字符
+			// 可以在仿函数内设置这两个字符的比较方式
+			// 最终会返回找到的找到的单次第一个字符位置的迭代器, 否则返回it2
+
+			auto iter = std::search(content.begin(), content.end(), keyword.begin(), keyword.end(),
+									[](int x, int y) {
+										return std::tolower(x) == std::tolower(y);
+									});
+			if (iter == content.end())
 				return "keyword does not exist!";
+			std::size_t pos = std::distance(content.begin(), iter);
 
 			std::size_t begin = 0;
 			std::size_t end = content.size() - 1;

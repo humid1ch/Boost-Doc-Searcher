@@ -3,9 +3,11 @@
 #pragma once
 
 #include <iostream>
+#include <unordered_map>
 #include <vector>
 #include <string>
 #include <fstream>
+#include <mutex>
 #include <boost/algorithm/string.hpp>
 #include "cppjieba/Jieba.hpp"
 
@@ -59,13 +61,74 @@ namespace ns_util {
 
 	class jiebaUtil {
 	private:
-		static cppjieba::Jieba jieba;
+		cppjieba::Jieba _jieba;
+		std::unordered_map<std::string, bool> _stopKeywordMap;
+
+		jiebaUtil()
+			: _jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH) {}
+
+		jiebaUtil(const jiebaUtil&) = delete;
+		jiebaUtil& operator=(const jiebaUtil&) = delete;
+
+		static jiebaUtil* _instance;
+
+	private:
+		void noStopHelper(const std::string& src, std::vector<std::string>* out) {
+			_jieba.CutForSearch(src, *out);
+			// 遍历out 查询是否为停止词 是则删除
+			// 需要注意迭代器失效的问题
+			for (auto iter = out->begin(); iter != out->end();) {
+				auto stopIt = _stopKeywordMap.find(*iter);
+				if (stopIt != _stopKeywordMap.end())
+					// 注意接收erase的返回值 防止出现迭代器失效问题
+					iter = out->erase(iter);
+				else
+					iter++;
+			}
+		}
 
 	public:
-		static void cutString(const std::string& src, std::vector<std::string>* out) {
-			// 以用于搜索的方式 分词
-			jieba.CutForSearch(src, *out);
+		static jiebaUtil* getInstance() {
+			static std::mutex mtx;
+			if (nullptr == _instance) {
+				mtx.lock();
+				if (nullptr == _instance) {
+					_instance = new jiebaUtil;
+				}
+				mtx.unlock();
+			}
+
+			return _instance;
+		}
+
+		// 主要是为了支持 消除暂停词的分词
+		// 也就是需要将暂停词, 写入到 map中
+		bool initJiebaUtil() {
+			// 首先按行读取文件 const char* const STOP_WORD_PATH = "./cppjiebaDict/stop_words.utf8"
+			std::ifstream stopFile(STOP_WORD_PATH, std::ios::in);
+			if (!stopFile.is_open()) {
+				return false;
+			}
+
+			std::string line;
+			while (std::getline(stopFile, line)) {
+				_stopKeywordMap.insert({line, true});
+			}
+
+			stopFile.close();
+
+			return true;
+		}
+
+		// 分词: 不消除暂停词的版本
+		void cutString(const std::string& src, std::vector<std::string>* out) {
+			_jieba.CutForSearch(src, *out);
+		}
+		// 分词: 消除暂停词的版本
+		void cutStringNoStop(const std::string& src, std::vector<std::string>* out) {
+			noStopHelper(src, out);
 		}
 	};
-	cppjieba::Jieba jiebaUtil::jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH);
+	jiebaUtil* jiebaUtil::_instance;
+	// cppjieba::Jieba jiebaUtil::jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH);
 } // namespace ns_util
