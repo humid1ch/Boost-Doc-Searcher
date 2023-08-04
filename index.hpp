@@ -32,6 +32,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <mutex>
 #include "util.hpp"
 
 namespace ns_index {
@@ -74,7 +75,29 @@ namespace ns_index {
 		// 倒排索引 使用 哈希表, 因为倒排索引 一定是 一个keyword 对应一组 invertedElem拉链
 		std::unordered_map<std::string, invertedList_t> invertedIndex;
 
+		// 单例模式设计
+		index() {}
+
+		index(const index&) = delete;
+		index& operator=(const index&) = delete;
+
+		static index* _instance; // 单例
+		static std::mutex _mtx;
+
 	public:
+		// 获取单例
+		static index* getInstance() {
+			if (nullptr == _instance) {
+				_mtx.lock();
+				if (nullptr == _instance) {
+					_instance = new index;
+				}
+				_mtx.unlock();
+			}
+
+			return _instance;
+		}
+
 		// 通过关键字 检索倒排索引, 获取对应的 倒排拉链
 		invertedList_t* getInvertedList(const std::string& keyword) {
 			// 先找 关键字 所在迭代器
@@ -211,4 +234,7 @@ namespace ns_index {
 			return true;
 		}
 	};
+	// 单例相关
+	index* index::_instance = nullptr;
+	std::mutex index::_mtx;
 } // namespace ns_index
