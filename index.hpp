@@ -150,8 +150,8 @@ namespace ns_index {
 				}
 
 				count++;
-				if (count % 50 == 0)
-					std::cout << "当前已经建立的索引文档: " << count << std::endl;
+				if(count % 50 == 0)
+    				std::cout <<"当前已经建立的索引文档: " << count <<std::endl;
 			}
 
 			return true;

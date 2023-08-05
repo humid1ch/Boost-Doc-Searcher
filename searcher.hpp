@@ -10,7 +10,7 @@
 #pragma once
 
 #include <algorithm>
-#include <boost/algorithm/string/case_conv.hpp>
+// #include <boost/algorithm/string/case_conv.hpp>
 #include <cctype>
 #include <iostream>
 #include <iterator>
@@ -18,6 +18,7 @@
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
+#include <boost/algorithm/string.hpp>
 #include <jsoncpp/json/json.h>
 #include "util.hpp"
 #include "index.hpp"
@@ -64,7 +65,7 @@ namespace ns_searcher {
 			jiebaIns->cutStringNoStop(query, &keywords);
 			// ns_util::jiebaUtil::cutString(query, &keywords);
 
-			std::vector<invertedElemOut_t> allInvertedElemOut;
+			// std::vector<invertedElemOut_t> allInvertedElemOut;
 			// std::vector<ns_index::invertedElem_t> allInvertedElem;
 
 			// 统计文档用, 因为可能存在不同的分词 在倒排索引中指向同一个文档的情况
@@ -85,14 +86,19 @@ namespace ns_searcher {
 					// 遍历倒排拉链, 根据文档id 对invertedElem 去重
 					auto& item = invertedElemOutMap[elem._docId]; // 在map中获取 或 创建对应文档id的 invertedElem
 					item._docId = elem._docId;
-					item._weight += elem._weight; // 权重需要+= 是因为一个文档通过不同的关键词被搜索到, 此文档就应该将与其相关的关键词的权重相加
-												  // 最好还将 此文档相关的关键词 也存储起来, 因为在客户端搜索结果中, 需要对网页中有的关键字进行高亮
-												  // 但是 invertedElem 的第三个成员是 单独的一个string对象, 不太合适
-												  // 所以, 可以定义一个与invertedElem 相似的, 但是第三个成员是一个 vector 的类, 比如 invertedElemOut
+					item._weight += elem._weight; 
+                    // 权重需要+= 是因为多个关键词指向了同一个文档 那么就说明此文档的与搜索内容的相关性更高
+                    // 所以, 就可以将多个关键字关于此文档的权重相加, 表示搜索相关性高
+                    // 最好还将 此文档相关的关键词 也存储起来, 因为在客户端搜索结果中, 需要对网页中有的关键字进行高亮
+                    // 但是 invertedElem 的第三个成员是 单独的一个string对象, 不太合适
+                    // 所以, 可以定义一个与invertedElem 相似的, 但是第三个成员是一个 vector 的类, 比如 invertedElemOut
 					item._keywords.push_back(elem._keyword);
 					// 此时就将当前invertedElem 去重到了 invertedElemMap 中
 				}
 			}
+
+            // vector 存储 文档相关信息, 方便排序
+            std::vector<invertedElemOut_t> allInvertedElemOut;
 			// 出循环之后, 就将搜索到的 文档的 id、权重和相关关键词 存储到了 invertedElemMap
 			// 然后将文档的相关信息 invertedElemOut 都存储到 vector 中
 			for (const auto& elemOut : invertedElemOutMap) {
