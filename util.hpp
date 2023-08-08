@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <boost/algorithm/string/case_conv.hpp>
 #include <iostream>
 #include <unordered_map>
 #include <vector>
@@ -9,6 +10,7 @@
 #include <fstream>
 #include <mutex>
 #include <boost/algorithm/string.hpp>
+#include "logMessage.hpp"
 #include "cppjieba/Jieba.hpp"
 
 namespace ns_util {
@@ -21,7 +23,8 @@ namespace ns_util {
 			std::ifstream in(filePath, std::ios::in);
 			if (!in.is_open()) {
 				// 打卡文件失败
-				std::cerr << "Failed to open " << filePath << "!" << std::endl;
+				LOG(WARNING, "Failed to open %s !", filePath.c_str());
+				// std::cerr << "Failed to open " << filePath << "!" << std::endl;
 				return false;
 			}
 
@@ -30,6 +33,26 @@ namespace ns_util {
 			std::string line;
 			while (std::getline(in, line)) {
 				*out += line;
+			}
+
+			in.close();
+
+			return true;
+		}
+		static bool readFaviconFile(const std::string& filePath, std::string* out) {
+			std::ifstream in(filePath, std::ios::in | std::ios::binary);
+			if (!in.is_open()) {
+				// 打卡文件失败
+				LOG(WARNING, "Failed to open %s !", filePath.c_str());
+				// std::cerr << "Failed to open " << filePath << "!" << std::endl;
+				return false;
+			}
+
+			// 走到这里打开文件成功
+			// 2. 读取文件内, 并存储到out中
+			char buffer[1024];
+			while (in.read(buffer, sizeof buffer - 1)) {
+				*out += buffer;
 			}
 
 			in.close();
@@ -78,27 +101,18 @@ namespace ns_util {
 			// 遍历out 查询是否为停止词 是则删除
 			// 需要注意迭代器失效的问题
 			for (auto iter = out->begin(); iter != out->end();) {
-				auto stopIt = _stopKeywordMap.find(*iter);
-				if (stopIt != _stopKeywordMap.end())
+				std::string word = *iter;
+				boost::to_lower(word);
+				auto stopIt = _stopKeywordMap.find(word);
+				// auto stopIt = _stopKeywordMap.find(*iter);
+				if (stopIt != _stopKeywordMap.end()) {
 					// 注意接收erase的返回值 防止出现迭代器失效问题
 					iter = out->erase(iter);
-				else
-					iter++;
-			}
-		}
-
-	public:
-		static jiebaUtil* getInstance() {
-			static std::mutex mtx;
-			if (nullptr == _instance) {
-				mtx.lock();
-				if (nullptr == _instance) {
-					_instance = new jiebaUtil;
 				}
-				mtx.unlock();
+				else {
+					iter++;
+				}
 			}
-
-			return _instance;
 		}
 
 		// 主要是为了支持 消除停止词的分词
@@ -118,6 +132,21 @@ namespace ns_util {
 			stopFile.close();
 
 			return true;
+		}
+
+	public:
+		static jiebaUtil* getInstance() {
+			static std::mutex mtx;
+			if (nullptr == _instance) {
+				mtx.lock();
+				if (nullptr == _instance) {
+					_instance = new jiebaUtil;
+					_instance->initJiebaUtil();
+				}
+				mtx.unlock();
+			}
+
+			return _instance;
 		}
 
 		// 分词: 不消除停止词的版本

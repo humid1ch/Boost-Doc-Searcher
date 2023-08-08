@@ -10,7 +10,6 @@
 #pragma once
 
 #include <algorithm>
-// #include <boost/algorithm/string/case_conv.hpp>
 #include <cctype>
 #include <iostream>
 #include <iterator>
@@ -20,6 +19,7 @@
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
 #include <jsoncpp/json/json.h>
+#include "logMessage.hpp"
 #include "util.hpp"
 #include "index.hpp"
 
@@ -34,15 +34,21 @@ namespace ns_searcher {
 	private:
 		ns_index::index* _index; // 建立索引的类
 
+		ns_util::jiebaUtil* _jiebaIns;
+
 	public:
 		void initSearcher(const std::string& input) {
 			// 搜索前的初始化操作
 			// 获取单例
 			_index = ns_index::index::getInstance();
-			std::cout << "获取单例成功 ..." << std::endl;
+			_jiebaIns = ns_util::jiebaUtil::getInstance();
+
+			LOG(NOTICE, "获取索引单例成功...");
+			// std::cout << "获取单例成功 ..." << std::endl;
 			// 建立索引
 			_index->buildIndex(input);
-			std::cout << "构建正排索引、倒排索引成功 ..." << std::endl;
+			LOG(NOTICE, "构建正派索引、倒排索引成功 ...");
+			// std::cout << "构建正排索引、倒排索引成功 ..." << std::endl;
 		}
 
 		// 搜索接口
@@ -59,10 +65,9 @@ namespace ns_searcher {
 		void search(const std::string& query, std::string* jsonString) {
 			// 1. 对需要搜索的句子或关键词进行分词
 			std::vector<std::string> keywords;
-			ns_util::jiebaUtil* jiebaIns = ns_util::jiebaUtil::getInstance();
-			jiebaIns->initJiebaUtil();
 
-			jiebaIns->cutStringNoStop(query, &keywords);
+			_jiebaIns->cutString(query, &keywords);
+			// _jiebaIns->cutStringNoStop(query, &keywords);
 			// ns_util::jiebaUtil::cutString(query, &keywords);
 
 			// std::vector<invertedElemOut_t> allInvertedElemOut;
@@ -86,19 +91,19 @@ namespace ns_searcher {
 					// 遍历倒排拉链, 根据文档id 对invertedElem 去重
 					auto& item = invertedElemOutMap[elem._docId]; // 在map中获取 或 创建对应文档id的 invertedElem
 					item._docId = elem._docId;
-					item._weight += elem._weight; 
-                    // 权重需要+= 是因为多个关键词指向了同一个文档 那么就说明此文档的与搜索内容的相关性更高
-                    // 所以, 就可以将多个关键字关于此文档的权重相加, 表示搜索相关性高
-                    // 最好还将 此文档相关的关键词 也存储起来, 因为在客户端搜索结果中, 需要对网页中有的关键字进行高亮
-                    // 但是 invertedElem 的第三个成员是 单独的一个string对象, 不太合适
-                    // 所以, 可以定义一个与invertedElem 相似的, 但是第三个成员是一个 vector 的类, 比如 invertedElemOut
+					item._weight += elem._weight;
+					// 权重需要+= 是因为多个关键词指向了同一个文档 那么就说明此文档的与搜索内容的相关性更高
+					// 所以, 就可以将多个关键字关于此文档的权重相加, 表示搜索相关性高
+					// 最好还将 此文档相关的关键词 也存储起来, 因为在客户端搜索结果中, 需要对网页中有的关键字进行高亮
+					// 但是 invertedElem 的第三个成员是 单独的一个string对象, 不太合适
+					// 所以, 可以定义一个与invertedElem 相似的, 但是第三个成员是一个 vector 的类, 比如 invertedElemOut
 					item._keywords.push_back(elem._keyword);
 					// 此时就将当前invertedElem 去重到了 invertedElemMap 中
 				}
 			}
 
-            // vector 存储 文档相关信息, 方便排序
-            std::vector<invertedElemOut_t> allInvertedElemOut;
+			// vector 存储 文档相关信息, 方便排序
+			std::vector<invertedElemOut_t> allInvertedElemOut;
 			// 出循环之后, 就将搜索到的 文档的 id、权重和相关关键词 存储到了 invertedElemMap
 			// 然后将文档的相关信息 invertedElemOut 都存储到 vector 中
 			for (const auto& elemOut : invertedElemOutMap) {
@@ -121,30 +126,46 @@ namespace ns_searcher {
 			// 然后 通过遍历此数组, 获取文档id, 根据id获取文档在正排索引中的内容
 			// 然后再将 所有内容序列化
 			Json::Value root;
-			for (auto& elemOut : allInvertedElemOut) {
-				// 通过Json::Value 对象, 存储文档内容
+			if (allInvertedElemOut.empty()) {
 				Json::Value elem;
-				// 通过elemOut._docId 获取正排索引中 文档的内容信息
-				ns_index::docInfo_t* doc = _index->getForwardIndex(elemOut._docId);
-				// elem赋值
-				elem["url"] = doc->_url;
-				elem["title"] = doc->_title;
+				elem["url"] = "http://119.3.223.238:8080";
+				elem["title"] = "Search nothing!";
 				// 关于文档的内容, 搜索结果中是不展示文档的全部内容的, 应该只显示包含关键词的摘要, 点进文档才显示相关内容
 				// 而docInfo中存储的是文档去除标签之后的所有内容, 所以不能直接将 doc._content 存储到elem对应key:value中
-				elem["desc"] = getDesc(doc->_content, elemOut._keywords[0]); // 只根据第一个关键词来获取摘要
-				// for Debug
-				// 这里有一个bug, jsoncpp 0.10.5.2 是不支持long或long long 相关类型的, 所以需要转换成 double
-				// 这里转换成 double不会有什么影响, 因为这两个参数只是本地调试显示用的.
-				elem["docId"] = (double)doc->_docId;
-				elem["weight"] = (double)elemOut._weight;
-
+				elem["desc"] = "Search nothing!";
 				root.append(elem);
+			}
+			else {
+				for (auto& elemOut : allInvertedElemOut) {
+					// 通过Json::Value 对象, 存储文档内容
+					Json::Value elem;
+					// 通过elemOut._docId 获取正排索引中 文档的内容信息
+					ns_index::docInfo_t* doc = _index->getForwardIndex(elemOut._docId);
+					// elem赋值
+					elem["url"] = doc->_url;
+					elem["title"] = doc->_title;
+					if (doc->_title.empty()) {
+						elem["title"] = "TITLE";
+					}
+					// 关于文档的内容, 搜索结果中是不展示文档的全部内容的, 应该只显示包含关键词的摘要, 点进文档才显示相关内容
+					// 而docInfo中存储的是文档去除标签之后的所有内容, 所以不能直接将 doc._content 存储到elem对应key:value中
+					elem["desc"] = getDesc(doc->_content, elemOut._keywords[0]); // 只根据第一个关键词来获取摘要
+					// for Debug
+					// 这里有一个bug, jsoncpp 0.10.5.2 是不支持long或long long 相关类型的, 所以需要转换成 double
+					// 这里转换成 double不会有什么影响, 因为这两个参数只是本地调试显示用的.
+					// elem["docId"] = (double)doc->_docId;
+					// elem["weight"] = (double)elemOut._weight;
+
+					root.append(elem);
+				}
 			}
 
 			// 序列化完成之后将相关内容写入字符串
 			// for Debug 用 styledWriter
 			Json::StyledWriter writer;
 			*jsonString = writer.write(root);
+			LOG(NOTICE, "User request has been finished");
+			// std::cout << "User request has been finished" << std::endl;
 		}
 
 		std::string getDesc(const std::string& content, const std::string& keyword) {
@@ -154,11 +175,14 @@ namespace ns_searcher {
 			const std::size_t nextStep = 100;
 			// 获取正文中 第一个 keyword 的位置
 
+			// std::size_t pos = content.find(keyword);
+			// if (pos == std::string::npos)
+			// 	return "keyword does not exist!";
 			// 直接这样处理, 会出现一个问题:
-			// keyword是有大小写的.
-			// 而 string::find() 是区分大小写的查找
-			// 如果不需要改变原数据情况下那要怎么查找呢? string容器也没有提供不区分大小写的查找方法
-			// 可以用std::search()
+			// keyword是有大小写的. 倒排索引中查找 我们实现的是忽略大小写, 所以可以找到文档
+			// 而 string::find() 是区分大小写的查找, 可能无法在内容中找到对应的关键词
+			// string容器也没有提供不区分大小写的查找方法
+			// 此时, 可以用std::search()
 			// std::search(it1, it2, it3, it4, pred);
 			// 可以在[it1, it2)中 查找第一个[it3, it4)(词语)的出现位置.
 			// 并且, 如果使用第5个参数, 就可以传入 带有两个参数的仿函数, 这两个参数就是需要比较的字符
@@ -187,10 +211,10 @@ namespace ns_searcher {
 
 			// 获取摘要
 			std::string desc;
-			if (pos <= begin + prevStep)
+			if (content.begin() + begin > content.begin())
 				desc = "...";
 			desc += content.substr(begin, end - begin);
-			if (pos + nextStep < end)
+			if (content.begin() + end < content.end())
 				desc += "...";
 
 			return desc;

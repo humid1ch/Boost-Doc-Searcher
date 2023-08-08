@@ -33,6 +33,7 @@
 #include <string>
 #include <unordered_map>
 #include <mutex>
+#include "logMessage.hpp"
 #include "util.hpp"
 
 namespace ns_index {
@@ -103,7 +104,8 @@ namespace ns_index {
 			// 先找 关键字 所在迭代器
 			auto iter = invertedIndex.find(keyword);
 			if (iter == invertedIndex.end()) {
-				std::cerr << keyword << " have no invertedList!" << std::endl;
+				LOG(WARNING, "%s have no invertedList!", keyword.c_str());
+				// std::cerr << keyword << " have no invertedList!" << std::endl;
 				return nullptr;
 			}
 
@@ -114,7 +116,8 @@ namespace ns_index {
 		// 通过倒排拉链中 每个倒排元素中存储的 文档id, 检索正排索引, 获取对应文档内容
 		docInfo_t* getForwardIndex(std::size_t docId) {
 			if (docId >= forwardIndex.size()) {
-				std::cerr << "docId out range, error!" << std::endl;
+				LOG(WARNING, "docId out range, error!");
+				// std::cerr << "docId out range, error!" << std::endl;
 				return nullptr;
 			}
 
@@ -128,7 +131,8 @@ namespace ns_index {
 			// 先以读取方式打开文件
 			std::ifstream in(input, std::ios::in);
 			if (!in.is_open()) {
-				std::cerr << "Failed to open " << input << std::endl;
+				LOG(WARNING, "Failed to open %s", input.c_str());
+				// std::cerr << "Failed to open " << input << std::endl;
 				return false;
 			}
 
@@ -139,19 +143,22 @@ namespace ns_index {
 				// 按照parser模块的处理, getline 一次读取到的数据, 就是一个文档的: title\3content\3url\n
 				docInfo_t* doc = buildForwardIndex(line); // 将一个文档的数据 建立到索引中
 				if (nullptr == doc) {
-					std::cerr << "Failed to buildForwardIndex for " << line << std::endl;
+					LOG(WARNING, "Failed to buildForwardIndex for %s", line.c_str());
+					// std::cerr << "Failed to buildForwardIndex for " << line << std::endl;
 					continue;
 				}
 
 				// 文档建立正排索引成功, 接着就通过 doc 建立倒排索引
 				if (!buildInvertedIndex(*doc)) {
-					std::cerr << "Failed to buildInvertedIndex for " << line << std::endl;
+					LOG(WARNING, "Failed to buildInvertedIndex for %s", line.c_str());
+					// std::cerr << "Failed to buildInvertedIndex for " << line << std::endl;
 					continue;
 				}
 
 				count++;
-				if(count % 50 == 0)
-    				std::cout <<"当前已经建立的索引文档: " << count <<std::endl;
+				LOG(NOTICE, "当前已建立文档索引: %d ", count);
+				// if (count % 50 == 0)
+				// 	std::cout << "当前已经建立的索引文档: " << count << std::endl;
 			}
 
 			return true;
@@ -204,7 +211,8 @@ namespace ns_index {
 
 			// 标题分词
 			std::vector<std::string> titleKeywords;
-			jiebaIns->cutString(doc._title, &titleKeywords);
+			jiebaIns->cutStringNoStop(doc._title, &titleKeywords);
+			// jiebaIns->cutString(doc._title, &titleKeywords);
 			// 标题词频统计 与 转换 记录
 			for (auto keyword : titleKeywords) {
 				boost::to_lower(keyword);		  // 关键字转小写
@@ -214,7 +222,8 @@ namespace ns_index {
 
 			// 内容分词
 			std::vector<std::string> contentKeywords;
-			jiebaIns->cutString(doc._content, &contentKeywords);
+			jiebaIns->cutStringNoStop(doc._content, &contentKeywords);
+			// jiebaIns->cutString(doc._content, &contentKeywords);
 			// 内容词频统计 与 转换 记录
 			for (auto keyword : contentKeywords) {
 				boost::to_lower(keyword);			// 关键字转小写
@@ -223,7 +232,7 @@ namespace ns_index {
 
 			// 这两个const 变量是用来计算 关键字在文档中的权重的.
 			// 并且, 关键字出现在标题中  文档与关键字的相关性大概率是要高的, 所以 可以把titleWeight 设置的大一些
-			const int titleWeight = 20;
+			const int titleWeight = 40;
 			const int contentWeight = 1;
 			// 分词并统计词频之后, keywordsMap 中已经存储的当前文档的所有关键字, 以及对应的在标题 和 内容中 出现的频率
 			// 就可以遍历 keywordsMap 获取关键字信息, 构建 invertedElem 并添加到 invertedIndex中 关键词的倒排拉链 invertedList中了

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Boost库 文档搜索</title>
+    <style>
+      /* 去掉网页中的所有的默认内外边距，html的盒子模型 */
+      * {
+        background-color: #f5f5f7;
+        /* 设置外边距 */
+        margin: 0;
+        /* 设置内边距 */
+        padding: 0;
+      }
+
+      /* 将我们的body内的内容100%和html的呈现吻合 */
+      html,
+      body {
+        height: 100%;
+      }
+
+      /* 类选择器.container */
+      .container {
+        text-align: center;
+        /* 设置div的宽度 */
+        width: 800px;
+        /* 通过设置外边距达到居中对齐的目的 */
+        margin: 0px auto;
+        /* 设置外边距的上边距，保持元素和网页的上部距离 */
+        margin-top: 100px;
+      }
+
+      /* 复合选择器，选中container 下的 search */
+      .container .search {
+        /* 宽度与父标签保持一致 */
+        width: auto;
+        /* 高度设置为52px */
+        height: 52px;
+      }
+
+      .container .result {
+        margin-top: 30px;
+        text-align: left;
+        width: 100%;
+      }
+
+      .container .result .item {
+        height: auto;
+        border-radius: 13px;
+        background-color: #fff;
+        box-shadow: 0 0 5px rgb(0, 0, 0, 0.2);
+        margin-top: 15px;
+        padding-bottom: 10px;
+        padding-top: 10px;
+      }
+
+      .container .result .item a {
+        margin-left: 10px;
+        margin-right: 10px;
+        /* 设置为块级元素，单独站一行 */
+        display: block;
+        background-color: #fff;
+        /* a标签的下划线去掉 */
+        text-decoration: none;
+        /* 设置a标签中的文字的字体大小 */
+        font-size: 20px;
+        /* 设置字体的颜色 */
+        color: #4e6ef2;
+        word-break: break-all;
+      }
+
+      .container .result .item a:hover {
+        /*设置鼠标放在a之上的动态效果*/
+        text-decoration: underline;
+      }
+
+      .container .result .item p {
+        margin-left: 10px;
+        margin-top: 10px;
+        margin-right: 10px;
+        display: block;
+        background-color: #fff;
+        font-size: 16px;
+        word-break: break-all;
+        font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
+          "Lucida SansUnicode", Geneva, Verdana, sans-serif;
+      }
+
+      .container .result .item i {
+        margin-left: 10px;
+        margin-right: 10px;
+        /* 设置为块级元素，单独站一行 */
+        display: block;
+        font-size: 12px;
+        /* 取消斜体风格 */
+        font-style: normal;
+        background-color: #fff;
+        color: gray;
+        word-break: break-all;
+      }
+
+      #INDEXBLOGS {
+        text-align: center;
+        width: 75%;
+      }
+
+      .search-box {
+        width: 666px;
+        margin: auto;
+        display: flex;
+        background-color: #fff;
+        align-items: center;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+        height: 44px;
+        box-shadow: 0 0 5px rgb(0, 0, 0, 0.2);
+      }
+
+      .search-input {
+        flex: 1;
+        padding: 0 15px;
+        border: none;
+        background-color: #fff;
+        border: 0px solid #ddd;
+        border-radius: 25px;
+        font-size: 16px;
+        height: 43px;
+      }
+
+      .search-input:focus {
+        outline: none;
+      }
+
+      .search-button {
+        padding: 0 18px;
+        height: 100%;
+        border: none;
+        border-radius: 0 25px 25px 0;
+        background: #fef9f2;
+        color: #666;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      .suggestion {
+        margin-bottom: 5px;
+        color: #000000;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <img
+        src="https://dxyt-july-image.oss-cn-beijing.aliyuncs.com/202308080011153.png"
+        id="INDEXBLOGS"
+      />
+      <p class="suggestion">
+        服务器配置原因, 若搜索结果过多 可能响应较慢, 请耐心等待哦~
+      </p>
+      <div class="search-box">
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder=""
+        />
+        <button onclick="Search()" class="search-button">&#9829; Search</button>
+      </div>
+      <div class="result"></div>
+    </div>
+    <script>
+      // 获取输入框元素
+      const input = document.getElementById("search-input");
+
+      // 输入框按键按下事件监听
+      input.addEventListener("keydown", function (event) {
+        // 判断按键为回车键
+        if (event.keyCode === 13) {
+          // 模拟按钮点击事件
+          document.querySelector(".search-button").click();
+        }
+      });
+      function Search() {
+        // 是浏览器的一个弹出框
+        // alert("hello js!");
+        // 1. 提取数据, $可以理解成就是JQuery的别称
+        let query = $(".container .search-input").val();
+        console.log("query = " + query); //console是浏览器的对话框，可以用来进行查看js数据
+
+        //2. 发起http请求,ajax: 属于一个和后端进行数据交互的函数，JQuery中的
+        $.ajax({
+          type: "GET",
+          url: "/s?word=" + query,
+          success: function (data) {
+            console.log(data);
+            BuildHtml(data);
+          },
+        });
+      }
+
+      function BuildHtml(data) {
+        // 获取html中的result标签
+        let result_lable = $(".container .result");
+        // 清空历史搜索结果
+        result_lable.empty();
+
+        for (let elem of data) {
+          // console.log(elem.title);
+          // console.log(elem.url);
+          let a_lable = $("<a>", {
+            text: elem.title
+              .replace(/&lt;/g, "<")
+              .replace(/&gt;/g, ">")
+              .replace(/&amp;/g, "&"),
+            href: elem.url,
+            // 跳转到新的页面
+            target: "_blank",
+          });
+          let i_lable = $("<i>", {
+            text: elem.url,
+          });
+
+          let p_lable = $("<p>", {
+            text: elem.desc
+              .replace(/&lt;/g, "<")
+              .replace(/&gt;/g, ">")
+              .replace(/&amp;/g, "&"),
+          });
+          let div_lable = $("<div>", {
+            class: "item",
+          });
+          a_lable.appendTo(div_lable);
+          i_lable.appendTo(div_lable);
+          p_lable.appendTo(div_lable);
+          div_lable.appendTo(result_lable);
+        }
+      }
+    </script>
+  </body>
+</html>
