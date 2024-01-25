@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include "logMessage.hpp"
 #include "util.hpp"
 #include "index.hpp"
